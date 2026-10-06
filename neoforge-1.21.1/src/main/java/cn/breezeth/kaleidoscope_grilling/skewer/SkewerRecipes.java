@@ -9,6 +9,7 @@ import cn.breezeth.kaleidoscope_grilling.food.HotFoodConfig;
 
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -26,11 +27,38 @@ public final class SkewerRecipes {
 
   public record Cooking(ItemStack raw, ItemStack cooked) {}
 
+  private record RecipeSnapshot(
+      Map<String, GrillingDataManager.Skewer> source,
+      List<Recipe> recipes,
+      Map<ResourceLocation, Boolean> generatedModels) {}
+
+  private static volatile RecipeSnapshot cachedRecipes;
+
   private static List<Recipe> recipes() {
-    return GrillingDataManager.skewersForDisplay().entrySet().stream()
+    return snapshot().recipes();
+  }
+
+  private static RecipeSnapshot snapshot() {
+    Map<String, GrillingDataManager.Skewer> source = GrillingDataManager.skewersForDisplay();
+    RecipeSnapshot snapshot = cachedRecipes;
+    if (snapshot != null && snapshot.source() == source) return snapshot;
+    List<Recipe> recipes = source.entrySet().stream()
         .map(SkewerRecipes::recipe)
         .filter(java.util.Objects::nonNull)
         .toList();
+    Map<ResourceLocation, Boolean> generatedModels = new HashMap<>();
+    for (Recipe recipe : recipes) {
+      // Keep the original first-match order, including false results and a raw
+      // result which is also its own cooked result.
+      generatedModels.putIfAbsent(recipe.rawResult(), "generated".equals(recipe.data().rawModel()));
+      if (recipe.cookedResult() != null) {
+        generatedModels.putIfAbsent(
+            recipe.cookedResult(), "generated".equals(recipe.data().cookedModel()));
+      }
+    }
+    snapshot = new RecipeSnapshot(source, recipes, Map.copyOf(generatedModels));
+    cachedRecipes = snapshot;
+    return snapshot;
   }
 
   private static Recipe recipe(Map.Entry<String, GrillingDataManager.Skewer> entry) {
@@ -184,18 +212,7 @@ public final class SkewerRecipes {
 
   public static boolean usesGeneratedModel(ItemStack stack) {
     ResourceLocation id = BuiltInRegistries.ITEM.getKey(stack.getItem());
-    Recipe recipe =
-        recipes().stream()
-            .filter(
-                candidate ->
-                    candidate.rawResult().equals(id)
-                        || candidate.cookedResult() != null && candidate.cookedResult().equals(id))
-            .findFirst()
-            .orElse(null);
-    if (recipe == null) return false;
-    String source =
-        recipe.rawResult().equals(id) ? recipe.data().rawModel() : recipe.data().cookedModel();
-    return "generated".equals(source);
+    return snapshot().generatedModels().getOrDefault(id, false);
   }
 
   @Nullable

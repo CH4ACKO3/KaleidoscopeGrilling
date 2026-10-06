@@ -53,6 +53,10 @@ neoForge {
     mods {
         kaleidoscope_grilling { sourceSet sourceSets.main }
     }
+    unitTest {
+        enable()
+        testedMod = mods.kaleidoscope_grilling
+    }
 }
 
 processResources {
@@ -67,6 +71,8 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // Always package the optional KubeJS bridge; the flag only adds KubeJS to development runs.
     compileOnly 'maven.modrinth:sk9knFPE:cQ4POTah'
     compileOnly 'maven.modrinth:umyGl7zF:F2nzeC19'
@@ -112,6 +118,9 @@ dependencies {
 }
 
 java { toolchain.languageVersion = JavaLanguageVersion.of(21) }
+
+sourceSets.test.java.srcDir file('../common/src/test/java')
+tasks.named('test') { useJUnitPlatform() }
 
 tasks.withType(Jar).configureEach {
     archiveFileName = "kaleidoscope_grilling-${project.version}-neoforge1.21.1.jar"

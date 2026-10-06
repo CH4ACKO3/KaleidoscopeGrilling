@@ -49,6 +49,10 @@ public final class GrillingDataManager extends SimpleJsonResourceReloadListener 
   private static volatile Map<String, Skewer> SKEWERS = Map.of();
   private static volatile Map<String, String> KINDS = Map.of();
   private static volatile Map<String, Skewer> SCRIPT_SKEWERS = Map.of();
+  private record DisplaySnapshot(
+      Map<String, Skewer> loaded, Map<String, Skewer> scripts, Map<String, Skewer> merged) {}
+
+  private static volatile DisplaySnapshot displaySnapshot;
   private static final Map<String, Skewer> PENDING_SCRIPT_SKEWERS =
       new ConcurrentHashMap<>();
 
@@ -87,10 +91,19 @@ public final class GrillingDataManager extends SimpleJsonResourceReloadListener 
   }
 
   public static Map<String, Skewer> skewersForDisplay() {
+    // Reloads, script commits and network sync replace these immutable maps.
+    Map<String, Skewer> loaded = SKEWERS;
+    Map<String, Skewer> scripts = SCRIPT_SKEWERS;
+    DisplaySnapshot snapshot = displaySnapshot;
+    if (snapshot != null && snapshot.loaded() == loaded && snapshot.scripts() == scripts) {
+      return snapshot.merged();
+    }
     Map<String, Skewer> result = new HashMap<>(BUILT_IN_SKEWERS);
-    result.putAll(SKEWERS);
-    result.putAll(SCRIPT_SKEWERS);
-    return Map.copyOf(result);
+    result.putAll(loaded);
+    result.putAll(scripts);
+    snapshot = new DisplaySnapshot(loaded, scripts, Map.copyOf(result));
+    displaySnapshot = snapshot;
+    return snapshot.merged();
   }
 
   /** Registers a mode-4 recipe from the optional KubeJS integration. */
