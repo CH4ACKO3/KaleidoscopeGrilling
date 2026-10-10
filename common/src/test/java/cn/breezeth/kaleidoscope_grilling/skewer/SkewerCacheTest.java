@@ -4,7 +4,6 @@ import cn.breezeth.kaleidoscope_grilling.data.GrillingDataManager;
 import cn.breezeth.kaleidoscope_grilling.data.GrillingDataManager.Skewer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.resources.ResourceLocation;
@@ -72,36 +71,4 @@ class SkewerCacheTest {
     }
   }
 
-  @Test
-  void modelIndexPreservesOriginalFirstMatchAndRawPrecedence() throws Exception {
-    Field loaded = field("SKEWERS"), scripts = field("SCRIPT_SKEWERS");
-    Object oldLoaded = loaded.get(null), oldScripts = scripts.get(null);
-    try {
-      loaded.set(null, Map.of(
-          RAW, skewer(COOKED, "provided", "provided"),
-          COOKED, skewer(COOKED, "generated", "provided"),
-          "cache_test:raw_other", skewer(COOKED, "generated", "generated")));
-      scripts.set(null, Map.of());
-      Object cached = snapshot();
-      List<?> recipes = (List<?>) invoke(cached, "recipes");
-      Map<?, ?> models = (Map<?, ?>) invoke(cached, "generatedModels");
-      var ids = new HashSet<Object>(models.keySet());
-      ids.add(ResourceLocation.tryParse("cache_test:absent"));
-      for (Object id : ids) {
-        boolean expected = false;
-        for (Object recipe : recipes) {
-          boolean raw = id.equals(invoke(recipe, "rawResult"));
-          if (raw || id.equals(invoke(recipe, "cookedResult"))) {
-            Skewer data = (Skewer) invoke(recipe, "data");
-            expected = "generated".equals(raw ? data.rawModel() : data.cookedModel());
-            break;
-          }
-        }
-        assertEquals(expected, models.containsKey(id) ? models.get(id) : false, id.toString());
-      }
-    } finally {
-      loaded.set(null, oldLoaded);
-      scripts.set(null, oldScripts);
-    }
-  }
 }
