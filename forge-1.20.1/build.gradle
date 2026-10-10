@@ -79,7 +79,6 @@ minecraft {
 }
 
 dependencies {
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     minecraft "net.minecraftforge:forge:${props.getProperty('minecraft_version')}-${props.getProperty('forge_version')}"
     // The bridge is always packaged so normal release builds expose the KubeJS API.
     // KubeJS itself remains an optional runtime dependency; this flag only adds it to dev runs.
@@ -142,9 +141,6 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 java { toolchain.languageVersion = JavaLanguageVersion.of(17) }
-
-sourceSets.test.java.srcDir file('../common/src/test/java')
-tasks.named('test') { useJUnitPlatform() }
 
 tasks.withType(Jar).configureEach {
     archiveFileName = "kaleidoscope_grilling-${project.version}-forge1.20.1.jar"
